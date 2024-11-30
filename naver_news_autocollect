@@ -1,0 +1,43 @@
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+import pytz
+
+# 언론사 oid 목록
+press_oid_list = {
+    '조선일보': '023', '중앙일보': '025', '동아일보': '020', '한겨레': '028',
+    '경향신문': '032', '오마이뉴스': '047', 'KBS': '056', 'MBC': '214',
+    'SBS': '055', 'TV조선': '448', 'JTBC': '437', '채널A': '449', 'MBN': '057'
+}
+
+def collect_news():
+    resultsss = []
+    for news_org, oid in press_oid_list.items():
+        try:
+            news_url = f"https://media.naver.com/press/{oid}"
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(news_url, headers=headers)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # 현재 시간 (KST)
+            kst = pytz.timezone('Asia/Seoul')
+            kst_dt = datetime.now(kst)
+            tm = kst_dt.strftime("%m-%d-%H-%M-%S")
+            
+            results = soup.select('a.press_news_link._es_pc_link')
+            resultss = [
+                f"{news_org}::::{tm}::::{result.select_one('span.press_news_text').text.strip()}::::{result['href']}"
+                for result in results if 'main' in result['href']
+            ]
+            resultsss.extend(resultss)
+        except Exception as e:
+            resultsss.append(f"{news_org}::::{tm}::::Error::::{str(e)}")
+    
+    # 결과를 텍스트 파일로 저장
+    file_path = '/workspace/mnaver_news_collect02.txt'
+    with open(file_path, 'a', encoding='utf8') as f:
+        f.write('\n' + '\n'.join(resultsss))
+    print(f"뉴스 수집이 완료되었습니다. 결과가 {file_path}에 저장되었습니다.")
+
+# 뉴스 수집 실행
+collect_news()
